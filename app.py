@@ -267,8 +267,8 @@ st.markdown(
 
 resample_option = st.selectbox(
     "Optional Resampling",
-    ["None", "H", "D"],
-    help="None keeps the original interval. H uses hourly average. D uses daily average."
+    ["None", "h", "D"],
+    help="None keeps the original interval. h uses hourly average. D uses daily average."
 )
 
 forecast_horizon = st.number_input(
@@ -501,7 +501,7 @@ try:
 
     with chart_col2:
         st.markdown("### Monthly Average Demand")
-        monthly_avg = dashboard_df.set_index(timestamp_col)[target_col].resample("M").mean().dropna()
+        monthly_avg = dashboard_df.set_index(timestamp_col)[target_col].resample("ME").mean().dropna()
         st.bar_chart(monthly_avg)
 
     chart_col3, chart_col4 = st.columns(2)
