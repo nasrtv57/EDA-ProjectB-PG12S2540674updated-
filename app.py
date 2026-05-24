@@ -183,21 +183,83 @@ st.pyplot(fig)
 # =========================================================
 
 st.subheader("STUDENT ADDITIONS — MODELING")
-st.code(
-    """
-# Add your forecasting models here
 
-# Example:
-# results_df = pd.DataFrame({
-#     "Model": ["Example"],
-#     "MAE": [0.0],
-#     "RMSE": [0.0]
-# })
-""",
-    language="python"
-)
+# ==============================
+# STUDENT ADDITIONS — MODELING
+# ==============================
+# This section trains simple forecasting models using a time-based split.
+# The dataset has already been cleaned and converted into X and y above.
+
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 results_df = None
+
+try:
+    if len(X) < 50:
+        st.warning("Not enough rows for reliable modeling. Try reducing the forecast horizon or checking the dataset.")
+    else:
+        # Time-based train/test split: last 20% is used for testing
+        split_index = int(len(X) * 0.8)
+
+        X_train = X.iloc[:split_index]
+        X_test = X.iloc[split_index:]
+        y_train = y.iloc[:split_index]
+        y_test = y.iloc[split_index:]
+
+        models = {
+            "Linear Regression": LinearRegression(),
+            "Random Forest": RandomForestRegressor(
+                n_estimators=100,
+                random_state=42,
+                max_depth=12,
+                n_jobs=-1
+            )
+        }
+
+        results = []
+        predictions = {}
+
+        for model_name, model in models.items():
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+
+            mae = mean_absolute_error(y_test, y_pred)
+            rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+            r2 = r2_score(y_test, y_pred)
+
+            results.append({
+                "Model": model_name,
+                "MAE": round(mae, 3),
+                "RMSE": round(rmse, 3),
+                "R2 Score": round(r2, 4)
+            })
+
+            predictions[model_name] = y_pred
+
+        results_df = pd.DataFrame(results)
+
+        st.subheader("Model Evaluation Results")
+        st.dataframe(results_df, use_container_width=True)
+
+        # Select best model based on lowest RMSE
+        best_model_name = results_df.sort_values("RMSE").iloc[0]["Model"]
+        st.success(f"Best model based on RMSE: {best_model_name}")
+
+        # Actual vs predicted plot
+        comparison_df = pd.DataFrame({
+            "Actual": y_test.values,
+            "Predicted": predictions[best_model_name]
+        }).reset_index(drop=True)
+
+        st.subheader("Actual vs Predicted Forecast")
+        st.line_chart(comparison_df.head(300))
+
+except Exception as e:
+    st.error(f"Modeling section error: {e}")
 
 # =========================================================
 # STUDENT ADDITIONS — DASHBOARD
@@ -205,12 +267,102 @@ results_df = None
 # =========================================================
 
 st.subheader("STUDENT ADDITIONS — DASHBOARD")
-st.code(
-    """
-# Add extra dashboard charts and KPIs here
-""",
-    language="python"
-)
+# ==============================
+# STUDENT ADDITIONS — DASHBOARD
+# ==============================
+# This section adds extra KPIs and visual insights for the forecasting dashboard.
+
+try:
+    st.subheader("Power Consumption Dashboard")
+
+    dashboard_df = ts_clean.copy()
+
+    # ------------------------------
+    # KPI summary cards
+    # ------------------------------
+    avg_power = dashboard_df[target_col].mean()
+    max_power = dashboard_df[target_col].max()
+    min_power = dashboard_df[target_col].min()
+    std_power = dashboard_df[target_col].std()
+
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+
+    kpi1.metric("Average Power", f"{avg_power:,.2f}")
+    kpi2.metric("Maximum Power", f"{max_power:,.2f}")
+    kpi3.metric("Minimum Power", f"{min_power:,.2f}")
+    kpi4.metric("Power Std Dev", f"{std_power:,.2f}")
+
+    # ------------------------------
+    # Time-series trend chart
+    # ------------------------------
+    st.subheader("Power Consumption Over Time")
+
+    trend_df = dashboard_df.set_index(timestamp_col)[target_col]
+
+    st.line_chart(trend_df)
+
+    # ------------------------------
+    # Daily average pattern
+    # ------------------------------
+    st.subheader("Daily Average Power Consumption")
+
+    daily_avg = (
+        dashboard_df
+        .set_index(timestamp_col)[target_col]
+        .resample("D")
+        .mean()
+        .dropna()
+    )
+
+    st.line_chart(daily_avg)
+
+    # ------------------------------
+    # Hour-of-day consumption pattern
+    # ------------------------------
+    st.subheader("Average Power Consumption by Hour")
+
+    hourly_pattern = (
+        dashboard_df
+        .assign(hour=dashboard_df[timestamp_col].dt.hour)
+        .groupby("hour")[target_col]
+        .mean()
+        .reset_index()
+    )
+
+    st.bar_chart(hourly_pattern.set_index("hour"))
+
+    # ------------------------------
+    # Weekday vs weekend comparison
+    # ------------------------------
+    st.subheader("Weekday vs Weekend Power Consumption")
+
+    weekend_pattern = dashboard_df.copy()
+    weekend_pattern["Day Type"] = np.where(
+        weekend_pattern[timestamp_col].dt.dayofweek >= 5,
+        "Weekend",
+        "Weekday"
+    )
+
+    day_type_summary = (
+        weekend_pattern
+        .groupby("Day Type")[target_col]
+        .mean()
+        .reset_index()
+    )
+
+    st.bar_chart(day_type_summary.set_index("Day Type"))
+
+    # ------------------------------
+    # Short written insight
+    # ------------------------------
+    st.info(
+        "Insight: This dashboard shows the overall power consumption trend, "
+        "daily demand variation, hourly usage pattern, and the difference "
+        "between weekday and weekend consumption."
+    )
+
+except Exception as e:
+    st.error(f"Dashboard section error: {e}")
 
 def build_submission_json():
     payload = {
