@@ -275,7 +275,7 @@ st.subheader("STUDENT ADDITIONS — DASHBOARD")
 try:
     st.subheader("Power Consumption Dashboard")
 
-    dashboard_df = ts_clean.copy()
+    dashboard_df = ts_df.copy()
 
     # ------------------------------
     # KPI summary cards
